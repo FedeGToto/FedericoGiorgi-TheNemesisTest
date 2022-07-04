@@ -8,4 +8,7 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/FedericoGiorgi-TheNemesisTest/Scenes/MenuScene/MenuScene.unity
     guid: b43bcac9d2c0c2a49a412150a71609b9
+  - enabled: 1
+    path: Assets/FedericoGiorgi-TheNemesisTest/Scenes/GameplayScene/GameplayScene.unity
+    guid: 8c6c7c5421dddb94598f63ce3eef049f
   m_configObjects: {}
