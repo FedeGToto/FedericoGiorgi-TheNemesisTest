@@ -12,6 +12,8 @@ public class NetworkManager : MonoBehaviourPunCallbacks
 {
     public static NetworkManager instance;
     public static string Status;
+    public static bool InMatchmaking;
+    public static bool InGame;
 
     [SerializeField] private int sendRate;
     [SerializeField] private int serializationRate;
@@ -20,6 +22,7 @@ public class NetworkManager : MonoBehaviourPunCallbacks
     [SerializeField] private string readyKey = "isReady";
 
     [Header("Gameplay")]
+    [SerializeField] private string menuScene;
     [SerializeField] private string gameplayScene;
 
     [Header("Teams")]
@@ -31,6 +34,9 @@ public class NetworkManager : MonoBehaviourPunCallbacks
     public static UnityAction OnConnectedToServer;
     public static UnityAction OnConnectedToLobby;
     public static UnityAction OnRoomJoined;
+    public static UnityAction OnRoomLeft;
+    public static UnityAction<Player> OnPlayerDisconnected;
+    public static UnityAction RestartMatchmaking;
     public static UnityAction PlayerTeamsUpdated;
     public static UnityAction<string> OnDisconnect;
     #endregion
@@ -45,14 +51,16 @@ public class NetworkManager : MonoBehaviourPunCallbacks
     #region Unity Methods
     private void Awake()
     {
-        PhotonTeamsManager.PlayerJoinedTeam += PlayerJoinedTeam;
-        PhotonTeamsManager.PlayerLeftTeam += PlayerLeftTeam;
-
-        PhotonNetwork.SerializationRate = serializationRate;
-        PhotonNetwork.SendRate = sendRate;
-
         if (instance == null)
+        {
             instance = this;
+
+            PhotonTeamsManager.PlayerJoinedTeam += PlayerJoinedTeam;
+            PhotonTeamsManager.PlayerLeftTeam += PlayerLeftTeam;
+
+            PhotonNetwork.SerializationRate = serializationRate;
+            PhotonNetwork.SendRate = sendRate;
+        }
         else
             Destroy(gameObject);
 
@@ -76,6 +84,13 @@ public class NetworkManager : MonoBehaviourPunCallbacks
         Debug.Log("OnJoinedLobby called.");
         Status = "Connected.";
         OnConnectedToLobby?.Invoke();
+
+        InGame = false;
+
+        if (InMatchmaking)
+        {
+            RestartMatchmaking?.Invoke();
+        }
     }
 
     public override void OnDisconnected(DisconnectCause cause)
@@ -106,6 +121,7 @@ public class NetworkManager : MonoBehaviourPunCallbacks
             hashtable[readyKey] = "False";
         }
         PhotonNetwork.LocalPlayer.SetCustomProperties(hashtable);
+        PhotonNetwork.LocalPlayer.LeaveCurrentTeam();
 
         PopulatePlayersLists();
         PlayerTeamsUpdated?.Invoke();
@@ -117,9 +133,29 @@ public class NetworkManager : MonoBehaviourPunCallbacks
         PlayerTeamsUpdated?.Invoke();
     }
 
+    public override void OnPlayerLeftRoom(Player otherPlayer)
+    {
+        Debug.LogFormat("{0} left the room.", otherPlayer.NickName);
+        OnPlayerDisconnected?.Invoke(otherPlayer);
+
+        PhotonNetwork.LeaveRoom();
+
+        if (InGame)
+        {
+
+        }
+        else
+        {
+            
+            InMatchmaking = true;
+        }
+    }
+
     public override void OnLeftRoom()
     {
-        Debug.Log("OnLeftRoom called. Successfully joined room.");
+        Debug.Log("OnLeftRoom called. Successfully left room.");
+
+        OnRoomLeft?.Invoke();
 
         neutralPlayers.Clear();
         redTeamPlayer.Clear();
@@ -145,6 +181,9 @@ public class NetworkManager : MonoBehaviourPunCallbacks
 
     public override void OnPlayerPropertiesUpdate(Player targetPlayer, Hashtable changedProps)
     {
+        PopulatePlayersLists();
+        PlayerTeamsUpdated?.Invoke();
+
         CheckStartPlay();
     }
 
@@ -282,12 +321,25 @@ public class NetworkManager : MonoBehaviourPunCallbacks
 
                 if (areAllReady && !isLoading)
                 {
+                    InGame = true;
                     PhotonNetwork.LoadLevel(gameplayScene);
                     isLoading = true;
                 }
             }
             
         }
+    }
+
+    public void EndGame()
+    {
+
+            if (PhotonNetwork.IsMasterClient)
+                PhotonNetwork.LeaveRoom();
+
+            SceneManager.LoadScene(menuScene);
+
+        InGame = false;
+        isLoading = false;
     }
 
     #region Getters and Setters
@@ -311,9 +363,19 @@ public class NetworkManager : MonoBehaviourPunCallbacks
         return readyKey;
     }
 
-    public  static Player GetLocalPlayer()
+    public static Player GetLocalPlayer()
     {
         return PhotonNetwork.LocalPlayer;
+    }
+
+    public static PhotonView GetPlayer(int playerID)
+    {
+        return PhotonNetwork.GetPhotonView(playerID);
+    }
+
+    public static GameObject Instantiate(GameObject spawnObject, Vector3 position = default, Quaternion rotation = default, byte group = 0, object[] data = null)
+    {
+        return PhotonNetwork.Instantiate(spawnObject.name, position, rotation, group, data);
     }
     #endregion
 }

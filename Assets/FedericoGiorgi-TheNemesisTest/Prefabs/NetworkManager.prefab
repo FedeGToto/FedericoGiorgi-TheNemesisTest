@@ -48,6 +48,7 @@ MonoBehaviour:
   sendRate: 60
   serializationRate: 60
   readyKey: isReady
+  menuScene: MenuScene
   gameplayScene: GameplayScene
   teamsManager: {fileID: 2588868818741594797}
   redTeamByteCode: 2

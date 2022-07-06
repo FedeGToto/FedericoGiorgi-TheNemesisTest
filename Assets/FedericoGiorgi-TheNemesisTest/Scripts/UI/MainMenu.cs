@@ -21,6 +21,10 @@ public class MainMenu : MonoBehaviour
     [Header("Buttons")]
     [SerializeField] private Button connectButton;
 
+    [Header("Matchmaking")]
+    [SerializeField] private GameObject matchmakingWindow;
+    [SerializeField] private TextMeshProUGUI matchmakingTimeText;
+
     [Header("Lobby")]
     [SerializeField] private Button joinRedButton;
     [SerializeField] private Button joinBlueButton;
@@ -33,12 +37,16 @@ public class MainMenu : MonoBehaviour
     [SerializeField] private Transform redPlayerNames;
     [SerializeField] private Transform bluePlayerNames;
 
+    private bool isInMatchmaking;
+    private float matchmakingTime = 0;
+
     #region Unity Methods
     private void Awake()
     {
         NetworkManager.OnConnectedToLobby += ConnectToLobby;
         NetworkManager.OnRoomJoined += OnRoomJoined;
         NetworkManager.PlayerTeamsUpdated += UpdatePlayerTeams;
+        NetworkManager.RestartMatchmaking += RestartMatchmaking;
     }
 
     private void Start()
@@ -46,6 +54,12 @@ public class MainMenu : MonoBehaviour
         if (PhotonNetwork.IsConnected)
         {
             ConnectToLobby();
+
+            if(PhotonNetwork.InRoom)
+                PhotonNetwork.LeaveRoom();
+
+            if (PhotonNetwork.InLobby && !PhotonNetwork.InRoom && NetworkManager.InMatchmaking)
+                StartMatchmaking();
         }
         else
         {
@@ -56,6 +70,16 @@ public class MainMenu : MonoBehaviour
     private void Update()
     {
         statusText.text = NetworkManager.Status;
+
+        if (isInMatchmaking)
+        {
+            matchmakingTime += Time.deltaTime;
+
+            int matchMakingMinutes = (int)(matchmakingTime / 60 % 60);
+            int matchMakingSeconds = (int)(matchmakingTime % 60);
+
+            matchmakingTimeText.text = $"Searching for a game...\n{matchMakingMinutes:00}:{matchMakingSeconds:00}";
+        }
     }
 
     private void OnDisable()
@@ -63,6 +87,7 @@ public class MainMenu : MonoBehaviour
         NetworkManager.OnRoomJoined -= OnRoomJoined;
         NetworkManager.OnConnectedToLobby -= ConnectToLobby;
         NetworkManager.PlayerTeamsUpdated -= UpdatePlayerTeams;
+        NetworkManager.RestartMatchmaking -= RestartMatchmaking;
     }
     #endregion
 
@@ -89,7 +114,7 @@ public class MainMenu : MonoBehaviour
     }
     public void SearchGame()
     {
-        PhotonNetwork.JoinRandomOrCreateRoom();
+        StartMatchmaking();
     }
 
     // Team management
@@ -135,8 +160,20 @@ public class MainMenu : MonoBehaviour
     }
     private void OnRoomJoined()
     {
+        EndMatchmaking();
         mainMenu.SetActive(false);
         lobby.SetActive(true);
+    }
+
+    private void RestartMatchmaking()
+    {
+        mainMenu.SetActive(true);
+        lobby.SetActive(false);
+
+        if (NetworkManager.InMatchmaking)
+        {
+            StartMatchmaking();
+        }
     }
     #endregion
 
@@ -164,4 +201,21 @@ public class MainMenu : MonoBehaviour
             player.GetComponent<TextMeshProUGUI>().text = item.NickName;
         }
     }
+
+    private void StartMatchmaking()
+    {
+        PhotonNetwork.JoinRandomOrCreateRoom();
+
+        matchmakingWindow.SetActive(true);
+        isInMatchmaking = true;
+        matchmakingTime = 0;
+    }
+
+    private void EndMatchmaking()
+    {
+        matchmakingWindow.SetActive(false);
+        isInMatchmaking = false;
+        NetworkManager.InMatchmaking = false;
+    }
+
 }

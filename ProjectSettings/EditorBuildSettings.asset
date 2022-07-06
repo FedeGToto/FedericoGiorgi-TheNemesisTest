@@ -6,6 +6,9 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
+    path: Assets/FedericoGiorgi-TheNemesisTest/Scenes/Initialize.unity
+    guid: d75e3d85adb87f64493c9ef4f2595f14
+  - enabled: 1
     path: Assets/FedericoGiorgi-TheNemesisTest/Scenes/MenuScene/MenuScene.unity
     guid: b43bcac9d2c0c2a49a412150a71609b9
   - enabled: 1
